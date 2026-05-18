@@ -168,6 +168,7 @@ export async function executeNode(
         const msgType = (config.messageType as string) ?? "text";
         const delay = Number(config.delay ?? 0);
         const typing = Boolean(config.typing);
+        const waitForReply = config.waitForReply !== false;
 
         if (!testMode) {
           if (delay > 0) {
@@ -177,57 +178,20 @@ export async function executeNode(
             await evolutionApi.sendTyping(contact.phone, delay || 3);
           }
 
-          const text = renderVariables(
-            (config.text as string) ?? "",
-            contact
-          );
-
-          if (msgType === "text") {
-            await evolutionApi.sendText(contact.phone, text);
-            await saveOutboundMessage(
-              supabase,
-              conversation,
-              contact,
-              "text",
-              text,
-              null
-            );
-          } else if (msgType === "audio" && config.media_url) {
-            await evolutionApi.sendAudio(
-              contact.phone,
-              config.media_url as string
-            );
-            await saveOutboundMessage(
-              supabase,
-              conversation,
-              contact,
-              "audio",
-              text || "Áudio",
-              config.media_url as string
-            );
-          } else if (msgType === "video" && config.media_url) {
-            await evolutionApi.sendVideo(
-              contact.phone,
-              config.media_url as string,
-              text || undefined
-            );
-            await saveOutboundMessage(
-              supabase,
-              conversation,
-              contact,
-              "video",
-              text || "Vídeo",
-              config.media_url as string
-            );
-          }
+          await sendFunnelMessage(supabase, contact, conversation, config, msgType);
         } else {
           await logAction(
             supabase,
             conversation.id,
             node.id,
             "message",
-            `[TEST] Would send ${msgType}`
+            `[TEST] Would send ${msgType}${waitForReply ? " + wait reply" : ""}`
           );
+        }
+
+        if (waitForReply && !testMode) {
+          await pauseForResponse(supabase, node, conversation, "message_wait_reply");
+          return;
         }
 
         await advanceToNext(supabase, node, conversation, testMode);
@@ -239,21 +203,7 @@ export async function executeNode(
         const waitType = config.waitType as string;
 
         if (waitType === "response") {
-          await supabase
-            .from("conversations")
-            .update({
-              status: "waiting",
-              current_node_id: node.id,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", conversation.id);
-          await logAction(
-            supabase,
-            conversation.id,
-            node.id,
-            "wait",
-            "waiting_for_response"
-          );
+          await pauseForResponse(supabase, node, conversation, "wait_for_response");
           return;
         }
 
@@ -422,6 +372,120 @@ export async function executeNode(
   }
 }
 
+async function pauseForResponse(
+  supabase: SupabaseAdmin,
+  node: FunnelNode,
+  conversation: Conversation,
+  logResult: string
+) {
+  await supabase
+    .from("conversations")
+    .update({
+      status: "waiting",
+      current_node_id: node.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", conversation.id);
+  await logAction(supabase, conversation.id, node.id, "wait", logResult);
+}
+
+async function sendFunnelMessage(
+  supabase: SupabaseAdmin,
+  contact: Contact,
+  conversation: Conversation,
+  config: Record<string, unknown>,
+  msgType: string
+) {
+  const caption = renderVariables((config.text as string) ?? "", contact);
+  const mediaUrl = (config.media_url as string) || null;
+
+  switch (msgType) {
+    case "text": {
+      const text = caption;
+      if (!text.trim()) break;
+      await evolutionApi.sendText(contact.phone, text);
+      await saveOutboundMessage(supabase, conversation, contact, "text", text, null);
+      break;
+    }
+    case "link": {
+      const linkUrl = renderVariables((config.link_url as string) ?? "", contact);
+      if (!linkUrl.trim()) break;
+      const body = caption.trim() ? `${caption}\n\n${linkUrl}` : linkUrl;
+      await evolutionApi.sendText(contact.phone, body);
+      await saveOutboundMessage(supabase, conversation, contact, "text", body, null);
+      break;
+    }
+    case "audio": {
+      if (!mediaUrl) break;
+      await evolutionApi.sendAudio(contact.phone, mediaUrl);
+      await saveOutboundMessage(
+        supabase,
+        conversation,
+        contact,
+        "audio",
+        caption || "Áudio",
+        mediaUrl
+      );
+      break;
+    }
+    case "video": {
+      if (!mediaUrl) break;
+      await evolutionApi.sendVideo(contact.phone, mediaUrl, caption || undefined);
+      await saveOutboundMessage(
+        supabase,
+        conversation,
+        contact,
+        "video",
+        caption || "Vídeo",
+        mediaUrl
+      );
+      break;
+    }
+    case "image": {
+      if (!mediaUrl) break;
+      await evolutionApi.sendImage(contact.phone, mediaUrl, caption || undefined);
+      await saveOutboundMessage(
+        supabase,
+        conversation,
+        contact,
+        "image",
+        caption || "Imagem",
+        mediaUrl
+      );
+      break;
+    }
+    case "document": {
+      if (!mediaUrl) break;
+      const fileName = (config.file_name as string) || "arquivo";
+      await evolutionApi.sendDocument(contact.phone, mediaUrl, fileName);
+      await saveOutboundMessage(
+        supabase,
+        conversation,
+        contact,
+        "document",
+        caption || fileName,
+        mediaUrl
+      );
+      break;
+    }
+  }
+}
+
+async function resumeAfterResponse(
+  supabase: SupabaseAdmin,
+  node: FunnelNode,
+  conversation: Conversation
+) {
+  await supabase
+    .from("conversations")
+    .update({
+      status: "active",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", conversation.id);
+  await advanceToNext(supabase, node, conversation, false);
+}
+
 async function advanceToNext(
   supabase: SupabaseAdmin,
   node: FunnelNode,
@@ -532,11 +596,14 @@ export async function processInboundForFunnel(
     if (node?.type === "wait") {
       const config = node.config as Record<string, unknown>;
       if (config.waitType === "response") {
-        await supabase
-          .from("conversations")
-          .update({ status: "active" })
-          .eq("id", conv.id);
-        await advanceToNext(supabase, node, conv, false);
+        await resumeAfterResponse(supabase, node, conv);
+        return;
+      }
+    }
+    if (node?.type === "message") {
+      const config = node.config as Record<string, unknown>;
+      if (config.waitForReply !== false) {
+        await resumeAfterResponse(supabase, node, conv);
         return;
       }
     }

@@ -68,12 +68,26 @@ function CustomNodeComponent({ data, selected }: NodeProps<FunnelNodeData>) {
 function getPreview(data: FunnelNodeData): string {
   const c = data.config;
   switch (data.nodeType) {
-    case "message":
-      return String(c.text ?? c.messageType ?? "Mensagem").slice(0, 50);
+    case "message": {
+      const type = (c.messageType as string) ?? "text";
+      const labels: Record<string, string> = {
+        text: "Texto",
+        image: "Imagem",
+        audio: "Áudio",
+        video: "Vídeo",
+        link: "Link",
+        document: "Arquivo",
+      };
+      const preview = String(c.text ?? c.link_url ?? labels[type] ?? "").slice(0, 40);
+      const wait = c.waitForReply !== false ? " · aguarda resposta" : "";
+      return `${labels[type] ?? type}: ${preview}${wait}`;
+    }
     case "trigger":
       return String(c.keyword ?? c.triggerType ?? "Entrada");
     case "wait":
-      return `${c.amount ?? 1} ${c.unit ?? "minutos"}`;
+      return (c.waitType as string) === "response"
+        ? "Aguardar resposta do lead"
+        : `${c.amount ?? 1} ${c.unit ?? "minutos"}`;
     case "condition":
       return String(c.condition ?? "Condição");
     case "tag":

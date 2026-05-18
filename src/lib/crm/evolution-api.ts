@@ -227,6 +227,30 @@ export const evolutionApi = {
     });
   },
 
+  async sendImage(phone: string, imageUrl: string, caption?: string) {
+    return evolutionRequest("/message/sendMedia", {
+      method: "POST",
+      body: JSON.stringify({
+        number: phone,
+        mediatype: "image",
+        media: imageUrl,
+        caption,
+      }),
+    });
+  },
+
+  async sendDocument(phone: string, fileUrl: string, fileName?: string) {
+    return evolutionRequest("/message/sendMedia", {
+      method: "POST",
+      body: JSON.stringify({
+        number: phone,
+        mediatype: "document",
+        media: fileUrl,
+        fileName: fileName ?? "arquivo",
+      }),
+    });
+  },
+
   async sendTyping(phone: string, durationSeconds: number) {
     return evolutionRequest("/chat/sendPresence", {
       method: "POST",

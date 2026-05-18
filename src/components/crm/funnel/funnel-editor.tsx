@@ -386,7 +386,15 @@ function getDefaultConfig(nodeType: string): Record<string, unknown> {
     case "trigger":
       return { triggerType: "keyword", keyword: "" };
     case "message":
-      return { messageType: "text", text: "", delay: 0, typing: false };
+      return {
+        messageType: "text",
+        text: "",
+        delay: 0,
+        typing: false,
+        waitForReply: true,
+        media_url: "",
+        link_url: "",
+      };
     case "wait":
       return { waitType: "fixed", amount: 5, unit: "minutes" };
     case "condition":

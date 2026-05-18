@@ -129,19 +129,56 @@ function MessageConfig({
   update: (p: Record<string, unknown>) => void;
 }) {
   const msgType = (config.messageType as string) ?? "text";
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("phone", "funnel");
+      const res = await fetch("/api/crm/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha no upload");
+      update({ media_url: data.url, file_name: file.name });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erro no upload");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const needsMedia = ["audio", "video", "image", "document"].includes(msgType);
+
   return (
     <>
-      <Field label="Tipo">
+      <Field label="Tipo de mensagem">
         <select
           value={msgType}
           onChange={(e) => update({ messageType: e.target.value })}
           className="w-full rounded border border-[#2e2e2e] bg-[#252525] px-2 py-1.5 text-sm text-white"
         >
           <option value="text">Texto</option>
+          <option value="image">Imagem</option>
           <option value="audio">Áudio</option>
           <option value="video">Vídeo</option>
+          <option value="link">Link</option>
+          <option value="document">Arquivo</option>
         </select>
       </Field>
+
+      <label className="mb-3 flex items-start gap-2 rounded-lg border border-[#E8521A]/30 bg-[#E8521A]/10 p-2.5 text-xs text-gray-300">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={config.waitForReply !== false}
+          onChange={(e) => update({ waitForReply: e.target.checked })}
+        />
+        <span>
+          <strong className="text-white">Aguardar resposta</strong> antes da próxima
+          mensagem
+        </span>
+      </label>
       {msgType === "text" && (
         <>
           <div className="mb-2 flex flex-wrap gap-1">
@@ -171,14 +208,77 @@ function MessageConfig({
           </p>
         </>
       )}
-      {(msgType === "audio" || msgType === "video") && (
-        <Field label="URL da mídia">
-          <input
-            value={(config.media_url as string) ?? ""}
-            onChange={(e) => update({ media_url: e.target.value })}
-            className="w-full rounded border border-[#2e2e2e] bg-[#252525] px-2 py-1.5 text-sm text-white"
-          />
-        </Field>
+      {msgType === "link" && (
+        <>
+          <Field label="Texto (opcional)">
+            <input
+              value={(config.text as string) ?? ""}
+              onChange={(e) => update({ text: e.target.value })}
+              placeholder="Confira nosso plano:"
+              className="w-full rounded border border-[#2e2e2e] bg-[#252525] px-2 py-1.5 text-sm text-white"
+            />
+          </Field>
+          <Field label="URL do link">
+            <input
+              value={(config.link_url as string) ?? ""}
+              onChange={(e) => update({ link_url: e.target.value })}
+              placeholder="https://..."
+              className="w-full rounded border border-[#2e2e2e] bg-[#252525] px-2 py-1.5 text-sm text-white"
+            />
+          </Field>
+        </>
+      )}
+
+      {needsMedia && (
+        <>
+          <Field label="Arquivo ou URL">
+            <input
+              type="file"
+              accept={
+                msgType === "image"
+                  ? "image/*"
+                  : msgType === "audio"
+                    ? "audio/*"
+                    : msgType === "video"
+                      ? "video/*"
+                      : "*/*"
+              }
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUpload(file);
+              }}
+              className="w-full text-xs text-gray-400"
+            />
+          </Field>
+          <Field label="URL da mídia">
+            <input
+              value={(config.media_url as string) ?? ""}
+              onChange={(e) => update({ media_url: e.target.value })}
+              placeholder="https://... (Supabase ou link público)"
+              className="w-full rounded border border-[#2e2e2e] bg-[#252525] px-2 py-1.5 text-sm text-white"
+            />
+          </Field>
+          {(msgType === "image" || msgType === "video" || msgType === "document") && (
+            <Field label={msgType === "document" ? "Nome do arquivo" : "Legenda (opcional)"}>
+              <input
+                value={
+                  msgType === "document"
+                    ? ((config.file_name as string) ?? "")
+                    : ((config.text as string) ?? "")
+                }
+                onChange={(e) =>
+                  update(
+                    msgType === "document"
+                      ? { file_name: e.target.value }
+                      : { text: e.target.value }
+                  )
+                }
+                className="w-full rounded border border-[#2e2e2e] bg-[#252525] px-2 py-1.5 text-sm text-white"
+              />
+            </Field>
+          )}
+        </>
       )}
       <Field label="Delay antes de enviar">
         <select
@@ -224,6 +324,12 @@ function WaitConfig({
           <option value="response">Aguardar resposta</option>
         </select>
       </Field>
+      {(config.waitType as string) === "response" && (
+        <p className="mb-3 text-[10px] text-gray-500">
+          O funil só continua depois que o lead enviar qualquer mensagem (texto, áudio,
+          imagem, etc.).
+        </p>
+      )}
       {(config.waitType ?? "fixed") === "fixed" && (
         <div className="flex gap-2">
           <input
