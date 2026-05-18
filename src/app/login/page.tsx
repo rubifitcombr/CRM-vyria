@@ -44,6 +44,12 @@ function LoginForm() {
           </h1>
           <p className="mt-2 text-sm text-gray-400">Automação de funil via WhatsApp</p>
         </div>
+        {configError ? (
+          <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+            Variáveis do Supabase não configuradas na Vercel. Adicione
+            NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.
+          </p>
+        ) : null}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <span className="mb-1 block text-sm text-gray-400">E-mail</span>
