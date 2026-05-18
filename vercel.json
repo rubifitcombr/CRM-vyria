@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/crm/queue/process",
+      "schedule": "* * * * *"
+    }
+  ]
+}
