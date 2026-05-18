@@ -12,6 +12,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/crm/inbox";
+  const configError = searchParams.get("error") === "config";
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
