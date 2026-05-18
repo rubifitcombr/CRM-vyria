@@ -71,6 +71,8 @@ Acesse `http://localhost:3000` → login → `/crm/inbox`.
 
 ## Deploy (Vercel)
 
-O cron em `vercel.json` processa a fila de mensagens a cada minuto (`/api/crm/queue/process`).
+O cron em `vercel.json` processa a fila de mensagens **1x por dia** às 09:00 UTC (`0 9 * * *`), compatível com o plano **Hobby**.
 
-Defina `CRON_SECRET` e configure o header `Authorization: Bearer <CRON_SECRET>` se necessário.
+No plano **Pro**, você pode usar agendamento mais frequente (ex.: `*/5 * * * *` a cada 5 minutos).
+
+Defina `CRON_SECRET` na Vercel. O endpoint `/api/crm/queue/process` aceita o header `Authorization: Bearer <CRON_SECRET>` (usado pelo cron da Vercel automaticamente).
