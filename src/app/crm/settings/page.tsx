@@ -231,7 +231,7 @@ export default function SettingsPage() {
     hasDedicated && settings.evolution_base_url && settings.evolution_api_key;
 
   return (
-    <div className="max-w-2xl p-6">
+    <div className="min-h-screen max-w-2xl p-6 pb-24">
       <h1 className="mb-2 text-2xl font-bold text-white">Configurações</h1>
       <p className="mb-6 text-sm text-gray-500">
         Instância WhatsApp exclusiva do Vyria CRM — isolada do Delivery (
