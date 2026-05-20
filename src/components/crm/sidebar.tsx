@@ -35,7 +35,7 @@ export function CrmSidebar() {
   }
 
   return (
-    <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-[#2e2e2e] bg-[#1a1a1a]">
+    <aside className="flex h-full w-56 shrink-0 flex-col overflow-y-auto border-r border-[#2e2e2e] bg-[#1a1a1a]">
       <div className="border-b border-[#2e2e2e] px-4 py-5">
         <Link href="/crm/inbox" className="text-lg font-bold text-white">
           Vyria <span className="text-[#E8521A]">CRM</span>
