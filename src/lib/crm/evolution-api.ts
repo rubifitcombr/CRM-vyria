@@ -79,6 +79,22 @@ async function evolutionRequest<T = unknown>(
   return data as T;
 }
 
+function buildWebhookPayload(webhookUrl: string) {
+  const secret = process.env.CRM_WEBHOOK_SECRET ?? "vyria-crm-2026";
+  return {
+    enabled: true,
+    url: webhookUrl,
+    headers: {
+      "x-webhook-secret": secret,
+    },
+    webhook_by_events: false,
+    webhook_base64: false,
+    byEvents: false,
+    base64: false,
+    events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+  };
+}
+
 export function parseConnectionState(data: unknown): {
   connected: boolean;
   state: string;
@@ -176,23 +192,37 @@ export const evolutionApi = {
   },
 
   async setWebhook(webhookUrl: string, overrides?: Partial<CrmSettings>) {
-    return evolutionRequest(
-      "/webhook/set/{instance}",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          webhook: {
-            enabled: true,
-            url: webhookUrl,
-            headers: {
-              "x-webhook-secret": process.env.CRM_WEBHOOK_SECRET ?? "vyria-crm-2026",
-            },
-            byEvents: false,
-            base64: false,
-            events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+    const webhook = buildWebhookPayload(webhookUrl);
+
+    try {
+      return await evolutionRequest(
+        "/webhook/set/{instance}",
+        {
+          method: "POST",
+          body: JSON.stringify({ webhook }),
+        },
+        overrides
+      );
+    } catch (firstError) {
+      try {
+        return await evolutionRequest(
+          "/webhook/set/{instance}",
+          {
+            method: "POST",
+            body: JSON.stringify(webhook),
           },
-        }),
-      },
+          overrides
+        );
+      } catch {
+        throw firstError;
+      }
+    }
+  },
+
+  async getWebhook(overrides?: Partial<CrmSettings>) {
+    return evolutionRequest(
+      "/webhook/find/{instance}",
+      { method: "GET" },
       overrides
     );
   },

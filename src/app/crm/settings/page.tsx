@@ -49,6 +49,7 @@ export default function SettingsPage() {
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [loadingConnect, setLoadingConnect] = useState(false);
   const [loadingWebhook, setLoadingWebhook] = useState(false);
+  const [loadingWebhookCheck, setLoadingWebhookCheck] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -208,11 +209,37 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMessage("Webhook configurado na instância vyria_crm!");
+      setMessage(`Webhook configurado na instância vyria_crm: ${data.webhook_url}`);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Erro ao configurar webhook");
     } finally {
       setLoadingWebhook(false);
+    }
+  }
+
+  async function checkWebhook() {
+    setLoadingWebhookCheck(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/crm/whatsapp/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...creds(), action: "check" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const savedUrl =
+        data.webhook?.webhook?.url ??
+        data.webhook?.url ??
+        data.webhook?.data?.webhook?.url ??
+        data.webhook?.data?.url ??
+        "Webhook encontrado, mas a Evolution não retornou a URL.";
+      setMessage(`Webhook atual: ${savedUrl}`);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Erro ao consultar webhook");
+    } finally {
+      setLoadingWebhookCheck(false);
     }
   }
 
@@ -228,7 +255,7 @@ export default function SettingsPage() {
   }
 
   const canUseCrm =
-    hasDedicated && settings.evolution_base_url && settings.evolution_api_key;
+    settings.evolution_base_url && settings.evolution_api_key;
 
   return (
     <div className="mx-auto w-full max-w-2xl p-6 pb-48">
@@ -400,6 +427,15 @@ export default function SettingsPage() {
 
       <section className="mb-6 rounded-xl border border-[#2e2e2e] bg-[#1a1a1a] p-6">
         <h2 className="mb-4 font-semibold text-white">Webhook de entrada</h2>
+        <p className="mb-3 text-xs text-gray-500">
+          Configure por aqui, sem abrir o painel da Evolution. Esta URL precisa ser
+          pública (Vercel) para receber as mensagens do WhatsApp.
+        </p>
+        <input
+          value={webhookUrl}
+          onChange={(e) => setWebhookUrl(e.target.value)}
+          className="mb-3 w-full rounded-lg border border-[#2e2e2e] bg-[#252525] px-3 py-2 text-xs text-white"
+        />
         <code className="mb-3 block break-all rounded-lg bg-[#252525] p-3 text-xs text-[#E8521A]">
           {webhookUrl}
         </code>
@@ -411,13 +447,22 @@ export default function SettingsPage() {
             Em local, use ngrok ou deploy na Vercel para receber mensagens.
           </p>
         )}
-        <button
-          onClick={configureWebhook}
-          disabled={loadingWebhook || !canUseCrm}
-          className="rounded-lg bg-[#252525] px-4 py-2 text-sm text-white hover:bg-[#333] disabled:opacity-50"
-        >
-          {loadingWebhook ? "Configurando..." : "Configurar webhook na Evolution"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={configureWebhook}
+            disabled={loadingWebhook || !canUseCrm || !webhookUrl}
+            className="rounded-lg bg-[#E8521A] px-4 py-2 text-sm text-white hover:bg-[#c44516] disabled:opacity-50"
+          >
+            {loadingWebhook ? "Configurando..." : "Configurar webhook pela API"}
+          </button>
+          <button
+            onClick={checkWebhook}
+            disabled={loadingWebhookCheck || !canUseCrm}
+            className="rounded-lg bg-[#252525] px-4 py-2 text-sm text-white hover:bg-[#333] disabled:opacity-50"
+          >
+            {loadingWebhookCheck ? "Consultando..." : "Ver webhook atual"}
+          </button>
+        </div>
       </section>
 
       <section className="mb-6 rounded-xl border border-[#2e2e2e] bg-[#1a1a1a] p-6">

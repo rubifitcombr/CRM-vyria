@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as Partial<CrmSettings> & {
     webhook_url?: string;
+    action?: "configure" | "check";
   };
 
   const webhookUrl =
@@ -25,8 +26,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await evolutionApi.setWebhook(webhookUrl, body);
-    return NextResponse.json({ ok: true, webhook_url: webhookUrl });
+    if (body.action === "check") {
+      const webhook = await evolutionApi.getWebhook(body);
+      return NextResponse.json({ ok: true, webhook });
+    }
+
+    const result = await evolutionApi.setWebhook(webhookUrl, body);
+    return NextResponse.json({ ok: true, webhook_url: webhookUrl, result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Webhook setup failed";
     return NextResponse.json({ error: msg }, { status: 500 });
