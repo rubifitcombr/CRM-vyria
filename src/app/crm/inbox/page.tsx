@@ -50,7 +50,7 @@ export default function InboxPage() {
   );
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-full min-h-[100svh]">
       <ConversationList
         conversations={conversations}
         activeId={activeId}

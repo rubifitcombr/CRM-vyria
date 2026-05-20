@@ -27,6 +27,29 @@ body {
   overflow-y: auto;
 }
 
+/* CRM: scroll sempre no painel principal (direita da sidebar) */
+body:has(.crm-shell) {
+  overflow: hidden;
+  height: 100%;
+}
+
+.crm-shell {
+  height: 100svh;
+  max-height: 100svh;
+  overflow: hidden;
+}
+
+.crm-main-pane {
+  margin-left: 14rem;
+  height: 100svh;
+  max-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

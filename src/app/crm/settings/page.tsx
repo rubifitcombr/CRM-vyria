@@ -231,7 +231,7 @@ export default function SettingsPage() {
     hasDedicated && settings.evolution_base_url && settings.evolution_api_key;
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-6 pb-40">
+    <div className="mx-auto w-full max-w-2xl p-6 pb-48">
       <h1 className="mb-2 text-2xl font-bold text-white">Configurações</h1>
       <p className="mb-6 text-sm text-gray-500">
         Instância WhatsApp exclusiva do Vyria CRM — isolada do Delivery (
@@ -379,11 +379,13 @@ export default function SettingsPage() {
               <p className="mb-3 text-sm text-gray-400">
                 WhatsApp → Aparelhos conectados → Conectar aparelho
               </p>
+              <div className="mx-auto max-h-[260px] max-w-[260px] overflow-auto">
               <img
                 src={qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`}
                 alt="QR Code"
-                className="mx-auto max-h-[240px] max-w-[240px] rounded-lg"
+                className="mx-auto h-auto w-full max-w-[220px] rounded-lg object-contain"
               />
+              </div>
               <button
                 onClick={connectWhatsApp}
                 disabled={loadingConnect}
