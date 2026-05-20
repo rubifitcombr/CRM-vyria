@@ -31,7 +31,7 @@ export default function FunnelsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="flex min-h-screen flex-col p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Funis</h1>
         <button

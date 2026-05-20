@@ -63,7 +63,7 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="flex min-h-screen flex-col p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">Contatos</h1>
         <div className="flex gap-2">

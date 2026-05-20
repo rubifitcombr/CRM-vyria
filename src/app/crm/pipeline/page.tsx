@@ -89,7 +89,7 @@ export default function PipelinePage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-[#2e2e2e] px-6 py-4">
         <h1 className="text-2xl font-bold text-white">Pipeline</h1>
         <button
