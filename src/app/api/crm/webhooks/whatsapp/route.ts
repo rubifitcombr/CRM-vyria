@@ -5,28 +5,46 @@ import { normalizePhone } from "@/lib/utils";
 import type { Message } from "@/types/crm";
 
 export async function POST(request: NextRequest) {
-  const secret = request.headers.get("x-webhook-secret");
-  if (secret !== process.env.CRM_WEBHOOK_SECRET) {
+  const expectedSecret = process.env.CRM_WEBHOOK_SECRET ?? "vyria-crm-2026";
+  const secret =
+    request.headers.get("x-webhook-secret") ??
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  if (secret !== expectedSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await request.json();
-  const event = body.event ?? body.type;
+  const event = String(body.event ?? body.type ?? "").toLowerCase();
 
-  if (event === "connection.update" || event === "CONNECTION_UPDATE") {
+  if (event === "connection.update") {
     return NextResponse.json({ ok: true });
   }
 
-  if (event !== "messages.upsert" && event !== "MESSAGES_UPSERT") {
+  if (event !== "messages.upsert") {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
   const data = body.data ?? body;
-  const msg = Array.isArray(data) ? data[0] : data;
-  const key = msg?.key ?? msg?.message?.key;
-  const remoteJid = key?.remoteJid ?? msg?.remoteJid;
-  if (!remoteJid || key?.fromMe) {
-    return NextResponse.json({ ok: true });
+  const messages = Array.isArray(data) ? data : [data];
+  let processed = 0;
+
+  for (const msg of messages) {
+    const ok = await processMessage(msg as Record<string, unknown>);
+    if (ok) processed += 1;
+  }
+
+  return NextResponse.json({ ok: true, processed });
+}
+
+async function processMessage(msg: Record<string, unknown>): Promise<boolean> {
+  const messageEnvelope = (msg.message ?? {}) as Record<string, unknown>;
+  const key = (msg.key ?? messageEnvelope.key ?? {}) as Record<string, unknown>;
+  const remoteJid = getString((key as Record<string, unknown>)?.remoteJid) ?? getString(msg?.remoteJid);
+  const fromMe = Boolean((key as Record<string, unknown>)?.fromMe ?? msg?.fromMe);
+
+  if (!remoteJid || fromMe || remoteJid.endsWith("@g.us") || remoteJid === "status@broadcast") {
+    return false;
   }
 
   const phone = normalizePhone(remoteJid.split("@")[0]);
@@ -42,7 +60,8 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (!contact) {
-    const pushName = msg?.pushName ?? msg?.message?.pushName;
+    const message = (msg.message ?? {}) as Record<string, unknown>;
+    const pushName = getString(msg?.pushName) ?? getString(message?.pushName);
     const { data: newContact } = await supabase
       .from("contacts")
       .insert({
@@ -61,7 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!contact) {
-    return NextResponse.json({ error: "Contact error" }, { status: 500 });
+    throw new Error("Contact error");
   }
 
   let { data: conversation } = await supabase
@@ -83,7 +102,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!conversation) {
-    return NextResponse.json({ error: "Conversation error" }, { status: 500 });
+    throw new Error("Conversation error");
   }
 
   const { data: savedMessage } = await supabase
@@ -96,7 +115,7 @@ export async function POST(request: NextRequest) {
       content: messageContent.text,
       media_url: messageContent.mediaUrl,
       status: "delivered",
-      evolution_message_id: key?.id ?? null,
+      evolution_message_id: getString(key.id) ?? null,
     })
     .select()
     .single();
@@ -118,7 +137,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return true;
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === "string" && value ? value : undefined;
 }
 
 function extractMessageContent(msg: Record<string, unknown>): {

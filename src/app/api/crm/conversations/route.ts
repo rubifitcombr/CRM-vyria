@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: conversations } = await supabase
+  const { data: conversations, error: conversationsError } = await supabase
     .from("conversations")
     .select(`
       *,
@@ -22,9 +22,15 @@ export async function GET(request: NextRequest) {
     `)
     .order("updated_at", { ascending: false });
 
+  if (conversationsError) {
+    return NextResponse.json({ error: conversationsError.message }, { status: 500 });
+  }
+
   const enriched = await Promise.all(
     (conversations ?? []).map(async (conv) => {
       const contact = conv.contacts;
+      if (!contact) return null;
+
       const { data: lastMsg } = await supabase
         .from("messages")
         .select("*")
@@ -62,7 +68,7 @@ export async function GET(request: NextRequest) {
     })
   );
 
-  let filtered = enriched;
+  let filtered = enriched.filter(Boolean);
 
   if (filter === "unread") {
     filtered = filtered.filter((c) => (c.unread_count ?? 0) > 0);

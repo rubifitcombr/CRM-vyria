@@ -638,19 +638,20 @@ export async function processInboundForFunnel(
 
   if (!match) return;
 
-  const { data: newConv } = await supabase
+  const { data: funnelConv } = await supabase
     .from("conversations")
-    .insert({
-      contact_id: contactId,
+    .update({
       funnel_id: match.funnelId,
       current_node_id: match.triggerNode.id,
       status: "active",
+      updated_at: new Date().toISOString(),
     })
+    .eq("id", conv.id)
     .select()
     .single();
 
-  if (newConv) {
-    await executeNode(match.triggerNode, newConv as Conversation, {
+  if (funnelConv) {
+    await executeNode(match.triggerNode, funnelConv as Conversation, {
       triggerMessage: message,
     });
   }

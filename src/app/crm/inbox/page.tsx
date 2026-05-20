@@ -12,13 +12,20 @@ export default function InboxPage() {
   const [activeId, setActiveId] = useState<string>();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ filter });
     if (search) params.set("q", search);
-    const res = await fetch(`/api/crm/conversations?${params}`);
-    const data = await res.json();
-    setConversations(data.conversations ?? []);
+    try {
+      const res = await fetch(`/api/crm/conversations?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao carregar conversas");
+      setConversations(data.conversations ?? []);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao carregar conversas");
+    }
   }, [filter, search]);
 
   useEffect(() => {
@@ -61,7 +68,17 @@ export default function InboxPage() {
         onSelect={setActiveId}
         unreadTotal={unreadTotal}
       />
-      {active ? (
+      {error ? (
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-red-400">
+          <p className="max-w-md text-sm">{error}</p>
+          <button
+            onClick={load}
+            className="mt-4 rounded-lg bg-[#252525] px-4 py-2 text-sm text-white"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : active ? (
         <ActiveChat conversation={active} onUpdate={load} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center text-gray-500">

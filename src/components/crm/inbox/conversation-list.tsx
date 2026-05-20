@@ -75,6 +75,12 @@ export function ConversationList({
         />
       </div>
       <div className="flex-1 overflow-y-auto">
+        {conversations.length === 0 ? (
+          <div className="p-4 text-center text-xs text-gray-500">
+            Nenhuma conversa encontrada. Quando o WhatsApp receber uma mensagem, ela
+            aparecerá aqui.
+          </div>
+        ) : null}
         {conversations.map((conv) => {
           const contact = conv.contact;
           const active = conv.id === activeId;
